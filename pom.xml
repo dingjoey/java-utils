@@ -4,9 +4,32 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>com.taobao</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.1</version>
+    </parent>
+
     <groupId>java-utils</groupId>
     <artifactId>java-utils</artifactId>
     <version>1.0-SNAPSHOT</version>
 
-    
+    <dependencies>
+        <!-- logback start-->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>0.9.18</version>
+        </dependency>
+        <!-- logback end-->
+
+        <!-- bdb je start -->
+        <dependency>
+            <groupId>sleepycat</groupId>
+            <artifactId>je</artifactId>
+            <version>3.3.75</version>
+        </dependency>
+        <!-- bdb je end -->
+
+    </dependencies>
 </project>
