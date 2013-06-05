@@ -11,10 +11,15 @@ import java.io.IOException;
  * Time: ÏÂÎç3:43
  */
 public class LogEntry implements Loggable {
+    private static final byte OP_START_TRANX = 0x00;
+    private static final byte OP_COMMIT_TRANX = 0X01;
     private static final String LOG_ENTRY_LINE_SEPRATOR = "\r\n";
-    private byte opCode;
-    private long timeStamp = System.currentTimeMillis();
-    private String contents;
+    /**
+     *
+     */
+    protected byte opCode;
+    protected long timeStamp = System.currentTimeMillis();
+    protected String contents;
 
     public LogEntry() {
     }
@@ -80,4 +85,33 @@ public class LogEntry implements Loggable {
                 ", contents='" + contents + '\'' +
                 '}';
     }
+
+    public static class StartTranxLogEntry extends LogEntry {
+        public StartTranxLogEntry() {
+            super(OP_START_TRANX, null);
+        }
+
+        public StartTranxLogEntry(long tranxId) {
+            super(OP_START_TRANX, String.valueOf(tranxId));
+        }
+
+        public StartTranxLogEntry(byte opCode, String contents) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public static class TranxCommitLogEntry extends LogEntry {
+        public TranxCommitLogEntry() {
+            super(OP_COMMIT_TRANX, null);
+        }
+
+        public TranxCommitLogEntry(long tranxId) {
+            super(OP_COMMIT_TRANX, String.valueOf(tranxId));
+        }
+
+        public TranxCommitLogEntry(byte opCode, String contents) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
 }

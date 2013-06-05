@@ -27,15 +27,19 @@ public class TranxLogger implements ITranxLogger {
      */
     private AtomicLong tranxId = new AtomicLong(0);
     /**
-     *
+     * 最新的一个事务日志记录sync到磁盘的的transaction id
      */
     private volatile long syncTranxId = Long.MIN_VALUE;
-
     private String root;
     private String tranxName;
+    /**
+     * 日志文件输出流
+     */
     private TranxLogFileOutputStream outputStream;
+    /**
+     * 日志文件输入流
+     */
     private TranxLogFileInputStream inputStream;
-
 
     public void setRoot(String root) {
         this.root = root;
@@ -108,13 +112,11 @@ public class TranxLogger implements ITranxLogger {
 
     }
 
-    @Override
     final public void log(Loggable loggable) {
         List<Loggable> loggables = new ArrayList<Loggable>(1);
         innerLog(loggables);
     }
 
-    @Override
     final public void logTranx(List<Loggable> tranx) {
         innerLog(tranx);
     }
@@ -134,11 +136,11 @@ public class TranxLogger implements ITranxLogger {
             buffer = new DataOutputBuffer();
         }
 
-        public synchronized void write(Loggable loggable) {
+        public void write(Loggable loggable) {
             buffer.writeLoggable(loggable);
         }
 
-        public synchronized void flushAndSync() throws IOException {
+        public void flushAndSync() throws IOException {
             // write and flush
             fos.write(buffer.toByteArray());
             fos.flush();
@@ -149,7 +151,7 @@ public class TranxLogger implements ITranxLogger {
             buffer.reset();
         }
 
-        public synchronized void close() throws IOException {
+        public void close() throws IOException {
             flushAndSync();
             fos.close();
         }
