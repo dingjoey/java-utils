@@ -50,6 +50,9 @@ public class DataOutputBufferTest {
         Loggable rLoggable = new LogEntry();
         inputBuffer.readLoggable(rLoggable);
 
+        System.out.println(rLoggable.toString());
+        System.out.println(wLoggable.toString());
+
         Assert.assertEquals(wLoggable, rLoggable);
     }
 }

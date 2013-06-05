@@ -13,6 +13,7 @@ import java.io.IOException;
 public class LogEntry implements Loggable {
     private static final String LOG_ENTRY_LINE_SEPRATOR = "\r\n";
     private byte opCode;
+    private long timeStamp = System.currentTimeMillis();
     private String contents;
 
     public LogEntry() {
@@ -26,6 +27,7 @@ public class LogEntry implements Loggable {
     public void writeToLog(DataOutputBuffer buffer) {
         try {
             buffer.writeByte(opCode);
+            buffer.writeLong(timeStamp);
             buffer.writeUTF8(contents);
             buffer.writeUTF8(LOG_ENTRY_LINE_SEPRATOR);
         } catch (IOException e) {
@@ -37,8 +39,8 @@ public class LogEntry implements Loggable {
     public void readFromLog(DataInputBuffer buffer) {
         try {
             opCode = buffer.readByte();
+            timeStamp = buffer.readLong();
             contents = buffer.readUTF8();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -52,18 +54,30 @@ public class LogEntry implements Loggable {
         if (this == obj) return true;
         LogEntry entry = (LogEntry) obj;
 
-        return entry.opCode == this.opCode && entry.contents.equals(this.contents);
+        return entry.opCode == this.opCode
+                && entry.timeStamp == this.timeStamp
+                && entry.contents.equals(this.contents);
     }
 
     @Override
     public int hashCode() {
         int result = 17; // ËØÊý
         result = 31 * result + (int) opCode;
+        result = 31 * result + Float.floatToIntBits(timeStamp);
         if (contents != null) {
             result = 31 * result + contents.hashCode();
         } else {
             result = 31 * result + 0;
         }
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "LogEntry{" +
+                "opCode=" + opCode +
+                ", timeStamp=" + timeStamp +
+                ", contents='" + contents + '\'' +
+                '}';
     }
 }
