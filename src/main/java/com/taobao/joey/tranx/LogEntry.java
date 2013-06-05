@@ -1,6 +1,6 @@
 package com.taobao.joey.tranx;
 
-import java.io.EOFException;
+import java.io.IOException;
 
 /**
  * taobao.com Inc. Copyright (c) 1998-2101 All Rights Reserved.
@@ -15,20 +15,55 @@ public class LogEntry implements Loggable {
     private byte opCode;
     private String contents;
 
-    @Override
-    public void writeToLog(DataOutputBuffer buffer) {
-        buffer.writeByte(opCode);
-        buffer.writeUTF8(contents);
-        buffer.writeUTF8(LOG_ENTRY_LINE_SEPRATOR);
+    public LogEntry() {
     }
 
-    @Override
+    public LogEntry(byte opCode, String contents) {
+        this.opCode = opCode;
+        this.contents = contents;
+    }
+
+    public void writeToLog(DataOutputBuffer buffer) {
+        try {
+            buffer.writeByte(opCode);
+            buffer.writeUTF8(contents);
+            buffer.writeUTF8(LOG_ENTRY_LINE_SEPRATOR);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public void readFromLog(DataInputBuffer buffer) {
         try {
             opCode = buffer.readByte();
-        } catch (EOFException e) {
+            contents = buffer.readUTF8();
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        contents = buffer.readUTF8();
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) return false;
+        if (obj.getClass() != getClass()) return false;
+
+        if (this == obj) return true;
+        LogEntry entry = (LogEntry) obj;
+
+        return entry.opCode == this.opCode && entry.contents.equals(this.contents);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 17; // ËØÊý
+        result = 31 * result + (int) opCode;
+        if (contents != null) {
+            result = 31 * result + contents.hashCode();
+        } else {
+            result = 31 * result + 0;
+        }
+        return result;
+    }
 }

@@ -27,6 +27,10 @@ public class DataOutputBuffer extends ByteArrayOutputStream {
         os.writeUTF(str);
     }
 
+    public void writeLong(long l) throws IOException {
+        os.writeLong(l);
+    }
+
     public void writeLoggable(Loggable loggable) {
         loggable.writeToLog(this);
     }
