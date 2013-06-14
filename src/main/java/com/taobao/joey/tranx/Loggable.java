@@ -14,12 +14,12 @@ public interface Loggable {
      *
      * @param buffer
      */
-    public void writeToLog(DataOutputBuffer buffer);
+    public boolean writeToLog(DataOutputBuffer buffer);
 
     /**
      * read loggable from buffer
      *
      * @param buffer
      */
-    public void readFromLog(DataInputBuffer buffer);
+    public boolean readFromLog(DataInputBuffer buffer);
 }

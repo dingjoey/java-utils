@@ -1,6 +1,9 @@
 package com.taobao.joey.tranx;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 /**
  * taobao.com Inc. Copyright (c) 1998-2101 All Rights Reserved.
@@ -10,7 +13,10 @@ import java.io.*;
  * Date: 13-6-4
  * Time: 下午2:36
  * <p/>
- * 封装ByteArrayOutputStream（byte[]）实现一个DataOutput接口的子集
+ * 1）封装ByteArrayOutputStream（byte[]）
+ * <p/>
+ * 2）借助Jdk中已有的功能，实现以Java类型为单位往buffer中写内容
+ *    通过组合一个DataoutputStream，使用DataOutput接口的子集功能来实现
  */
 public class DataOutputBuffer extends ByteArrayOutputStream {
     private DataOutputStream os;

@@ -11,9 +11,10 @@ import java.io.IOException;
  * Time: 下午3:43
  */
 public class LogEntry implements Loggable {
-    private static final byte OP_START_TRANX = 0x00;
-    private static final byte OP_COMMIT_TRANX = 0X01;
-    private static final String LOG_ENTRY_LINE_SEPRATOR = "\r\n";
+    public static final String DEFAULT_ENCODE = "UTF-8";
+    public static final byte OP_START_TRANX = 0x00;
+    public static final byte OP_COMMIT_TRANX = 0X01;
+    public static final String LOG_ENTRY_SEPRATOR = "\r\n";
     /**
      *
      */
@@ -29,36 +30,40 @@ public class LogEntry implements Loggable {
         this.contents = contents;
     }
 
-    public void writeToLog(DataOutputBuffer buffer) {
+    public boolean writeToLog(DataOutputBuffer buffer) {
         try {
             buffer.writeByte(opCode);
             buffer.writeLong(timeStamp);
             buffer.writeUTF8(contents);
-            buffer.writeUTF8(LOG_ENTRY_LINE_SEPRATOR);
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
-
+        return true;
     }
 
-    public void readFromLog(DataInputBuffer buffer) {
+    public boolean readFromLog(DataInputBuffer buffer) {
         try {
             opCode = buffer.readByte();
             timeStamp = buffer.readLong();
-            contents = buffer.readUTF8();
+            if (buffer.available() > 0)
+                contents = buffer.readUTF8();
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
+        return true;
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj == null) return false;
-        if (obj.getClass() != getClass()) return false;
 
         if (this == obj) return true;
-        LogEntry entry = (LogEntry) obj;
 
+        if (!(obj instanceof LogEntry)) return false;
+
+        LogEntry entry = (LogEntry) obj;
         return entry.opCode == this.opCode
                 && entry.timeStamp == this.timeStamp
                 && entry.contents.equals(this.contents);
@@ -67,6 +72,7 @@ public class LogEntry implements Loggable {
     @Override
     public int hashCode() {
         int result = 17; // 素数
+        // 选31 作为乘数是有说法的
         result = 31 * result + (int) opCode;
         result = 31 * result + Float.floatToIntBits(timeStamp);
         if (contents != null) {
@@ -87,30 +93,22 @@ public class LogEntry implements Loggable {
     }
 
     public static class StartTranxLogEntry extends LogEntry {
-        public StartTranxLogEntry() {
-            super(OP_START_TRANX, null);
-        }
-
-        public StartTranxLogEntry(long tranxId) {
+        private StartTranxLogEntry(long tranxId) {
             super(OP_START_TRANX, String.valueOf(tranxId));
         }
 
-        public StartTranxLogEntry(byte opCode, String contents) {
-            throw new UnsupportedOperationException();
+        public static LogEntry newEntry(long tranxId) {
+            return new StartTranxLogEntry(tranxId);
         }
     }
 
-    public static class TranxCommitLogEntry extends LogEntry {
-        public TranxCommitLogEntry() {
-            super(OP_COMMIT_TRANX, null);
-        }
-
-        public TranxCommitLogEntry(long tranxId) {
+    public static class CommitTranxLogEntry extends LogEntry {
+        public CommitTranxLogEntry(long tranxId) {
             super(OP_COMMIT_TRANX, String.valueOf(tranxId));
         }
 
-        public TranxCommitLogEntry(byte opCode, String contents) {
-            throw new UnsupportedOperationException();
+        public static LogEntry newEntry(long tranxId) {
+            return new CommitTranxLogEntry(tranxId);
         }
     }
 
