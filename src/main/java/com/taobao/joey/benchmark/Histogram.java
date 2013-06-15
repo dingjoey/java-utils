@@ -59,8 +59,8 @@ public class Histogram implements IHistogram {
 
     public void clear() {
         count = 0.0;
-        max = 0.0;
-        min = 0.0;
+        max = Double.MAX_VALUE;
+        min = Double.MAX_VALUE;
         sum = 0.0;
         squareSum = 0.0;
         for (int i = 0; i < BUCKET_SIZE; i++) {
