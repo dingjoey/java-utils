@@ -1,5 +1,7 @@
 package com.taobao.joey;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -30,6 +32,12 @@ public class RandomUtil {
     }
 
     public static void main(String[] args) {
+        Map<String, String> map = new HashMap<String, String>();
+        Map map2 = map;
+        map.put("key", "value");
+        System.out.println(map2.get("key"));
+
+        /*
         while (true) {
             randomWithoutSeed();
             System.out.println("");
@@ -42,5 +50,7 @@ public class RandomUtil {
                 e.printStackTrace();
             }
         }
+        */
     }
 }
+

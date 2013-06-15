@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * To change this template use File | Settings | File Templates.
  * <p/>
  * 理解ExecutorService的
- * shutdown作用：组织Task提交到任务队列 ；
+ * shutdown作用：阻止Task提交到任务队列 ；
  * shutdownNow作用：通过interrupt终止真正执行任务的线程，返回任务队列中剩余的Task
  */
 public class UsingExecutorService {

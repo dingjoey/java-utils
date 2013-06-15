@@ -43,11 +43,11 @@ public class DataOutputBufferTest {
     @Test
     public void testLoogable() {
         DataOutputBuffer outputBuffer = new DataOutputBuffer();
-        Loggable wLoggable = new LogEntry.StartTranxLogEntry(33l);
+        Loggable wLoggable = LogEntry.StartTranxLogEntry.newEntry(33l);
         outputBuffer.writeLoggable(wLoggable);
 
         DataInputBuffer inputBuffer = new DataInputBuffer(outputBuffer.toByteArray());
-        Loggable rLoggable = new LogEntry.StartTranxLogEntry();
+        Loggable rLoggable = new LogEntry();
         inputBuffer.readLoggable(rLoggable);
 
         System.out.println(rLoggable.toString());

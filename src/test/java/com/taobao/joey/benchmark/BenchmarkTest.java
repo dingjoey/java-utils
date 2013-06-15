@@ -24,6 +24,6 @@ public class BenchmarkTest {
                 stats.finishSingleOp();
             }
         };
-        benchmark.run(100, 5000, "test-bench", method);
+        benchmark.run(5, 5000, "test-bench", method);
     }
 }

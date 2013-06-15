@@ -71,6 +71,7 @@ public class IOUtils {
     }
 
     public static void main(String[] args) throws IOException {
+
         File file = new File(".testfiles/testFile");
         OutputStream outputStream = new FileOutputStream(file);
         String content = "haha\nxixi\ngege\n";

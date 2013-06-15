@@ -37,7 +37,7 @@ public class TranxLogger implements ITranxLogger {
     /**
      * 定义一个日志文件大小的上限为记录LOG_MAX_TRANX_NUM个事务
      */
-    private static final int LOG_MAX_TRANX_NUM = 1000;
+    private static final int LOG_MAX_TRANX_NUM = 100000;
     /**
      * 用作TranxLogger实例的缓存 key == root + FILE_NAME_SEPERATOR +  tranxName
      */
@@ -74,7 +74,7 @@ public class TranxLogger implements ITranxLogger {
     /**
      * @return
      */
-    public static long nextTranxId() {
+    public synchronized static long nextTranxId() {
         return tranxId.getAndIncrement();
     }
 
@@ -311,7 +311,7 @@ public class TranxLogger implements ITranxLogger {
 
         if (tranxId.get() % LOG_MAX_TRANX_NUM != 0) {
             LOG.error("illegal log file index {}", tranxId.get());
-            throw new IllegalStateException("illegal tranxId, when create log file");
+            //throw new IllegalStateException("illegal tranxId, when create log file");
         }
 
         File logFile = new File(tranxDir, buildLogName(tranxId.get() / LOG_MAX_TRANX_NUM));
