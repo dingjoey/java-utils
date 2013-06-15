@@ -31,5 +31,19 @@
         </dependency>
         <!-- bdb je end -->
 
+        <!-- commons-lang start -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.1</version>
+        </dependency>
+        <!-- commons-lang end -->
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.4</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
