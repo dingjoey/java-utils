@@ -37,7 +37,9 @@ public class TranxLogger implements ITranxLogger {
     /**
      * 定义一个日志文件大小的上限为记录LOG_MAX_TRANX_NUM个事务
      */
-    private static final int LOG_MAX_TRANX_NUM = 100000;
+    private static final int LOG_MAX_TRANX_NUM = 10000;
+    private static volatile int tranxCnt = 0;
+    private static volatile int logIndex = Integer.MIN_VALUE;;
     /**
      * 用作TranxLogger实例的缓存 key == root + FILE_NAME_SEPERATOR +  tranxName
      */
@@ -52,10 +54,16 @@ public class TranxLogger implements ITranxLogger {
      * 日志文件输出流
      */
     private volatile TranxLogFileOutputStream outputStream;  //AtomicReference作用一样，但是更易读
+
+
     /**
      * 日志文件输入流
      */
     private TranxLogFileInputStream inputStream;
+    /**
+     * 由于需要同步控制静态和非静态方法，所以显示的创建一个监视器对象
+     */
+    private static final Object lock = new byte[1];
 
     private TranxLogger(String root, String tranxName) {
         this.root = root;
@@ -74,11 +82,14 @@ public class TranxLogger implements ITranxLogger {
     /**
      * @return
      */
-    public synchronized static long nextTranxId() {
-        return tranxId.getAndIncrement();
+    public static long nextTranxId() {
+        synchronized (lock) {
+            tranxCnt++;
+            return tranxId.getAndIncrement();
+        }
     }
 
-    final public static synchronized TranxLogger getTranxLogger(String root, String tranxName) {
+    public static synchronized TranxLogger getTranxLogger(String root, String tranxName) {
         String key = new StringBuilder().append(root).append(FILE_NAME_SEPERATOR).append(tranxName).toString();
         TranxLogger logger = tranxLoggers.get(key);
 
@@ -94,53 +105,58 @@ public class TranxLogger implements ITranxLogger {
      *
      * @return
      */
-    final public synchronized boolean openLogging() {
-        // 找到日志文件尾;打开输出流
-        File activeLog = findActiveLog();
-        if (activeLog == null) {  // 没有日志文件则创建一个新的
+    public boolean openLogging() {
+        synchronized (lock) {
+            // 找到日志文件尾;打开输出流
+            File activeLog = findActiveLog();
+            if (activeLog == null) {  // 没有日志文件则创建一个新的
+                try {
+                    activeLog = create();
+                } catch (IOException e) {
+                    LOG.error("create log file error", e);
+                    return false;
+                } catch (IllegalStateException e) {
+                    LOG.error("create log file error", e);
+                    return false;
+                }
+            }
+
             try {
-                activeLog = create();
-            } catch (IOException e) {
-                LOG.error("create log file error", e);
-                return false;
-            } catch (IllegalStateException e) {
-                LOG.error("create log file error", e);
+                outputStream = new TranxLogFileOutputStream(activeLog);
+            } catch (FileNotFoundException e) {
+                LOG.error("active log file not found", e);
                 return false;
             }
         }
-
-        try {
-            outputStream = new TranxLogFileOutputStream(activeLog);
-        } catch (FileNotFoundException e) {
-            LOG.error("active log file not found", e);
-            return false;
-        }
-
         return true;
     }
 
     /**
      * 关闭写入流，并且保证buffer sync to disk
      */
-    final public synchronized boolean closeLogging() {
-        if (outputStream == null) {
-            return false;
-        }
+    public synchronized boolean closeLogging() {
+        synchronized (lock) {
+            if (outputStream == null) {
+                return false;
+            }
 
-        try {
-            outputStream.close();
-        } catch (IOException e) {
-            LOG.warn("close tranx logger error, log records maybe lost", e);
-            return false;
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+                LOG.warn("close tranx logger error, log records maybe lost", e);
+                return false;
+            }
         }
         return true;
     }
 
     /**
+     * 非线程安全;当前设计恢复工作由单线程完成
+     *
      * @param steps
      * @return
      */
-    final public boolean openRecovering(int steps) {
+    public boolean openRecovering(int steps) {
         // 确保日志目录存在
         File parent = new File(root, BASE_DIR);
         File tranxDir = new File(parent, tranxName);
@@ -164,9 +180,11 @@ public class TranxLogger implements ITranxLogger {
     }
 
     /**
+     * 非线程安全;当前设计恢复工作由单线程完成
+     *
      * @return
      */
-    final public boolean closeRecovering() {
+    public boolean closeRecovering() {
         if (inputStream == null) {
             return false;
         }
@@ -182,41 +200,55 @@ public class TranxLogger implements ITranxLogger {
     /**
      * @return
      */
-    final public boolean sync() {
-        if (outputStream == null) {
-            return false;
-        }
-        try {
-            outputStream.flushAndSync();
-        } catch (IOException e) {
-            try {
-                LOG.warn("sync falied, data maybe lost :  {} ", outputStream.buffer.dump("UTF-8"), e);
-            } catch (UnsupportedEncodingException e1) {
+    public boolean sync() {
+        synchronized (lock) {
+            if (outputStream == null) {
+                return false;
             }
-            return false;
+            try {
+                outputStream.flushAndSync();
+            } catch (IOException e) {
+                try {
+                    LOG.warn("sync falied, data maybe lost :  {} ", outputStream.buffer.dump("UTF-8"), e);
+                } catch (UnsupportedEncodingException e1) {
+                }
+                return false;
+            }
         }
         return true;
     }
 
-    final boolean checkpoint() {
+    public boolean checkpoint() {
         //TODO
         return true;
     }
 
-    final public void log(Loggable loggable) {
+    /**
+     * 线程安全的
+     * 实现中尽可能的缩小临界区
+     *
+     * @param loggable
+     */
+    public void log(Loggable loggable) {
         if (loggable == null) return;
         List<Loggable> loggables = new ArrayList<Loggable>(1);
         checkLogFull();
         innerLog(loggables);
     }
 
-    final public void logTranx(List<Loggable> tranx) {
+    /**
+     * 线程安全的
+     * 实现中尽可能的缩小临界区
+     *
+     * @param tranx
+     */
+    public void logTranx(List<Loggable> tranx) {
         if (tranx == null || tranx.size() == 0) return;
         checkLogFull();
         innerLog(tranx);
     }
 
-    final public boolean recover() throws IOException {
+    public boolean recover() throws IOException {
         List<Loggable> tranx = new ArrayList<Loggable>();
         List<Loggable> loggables = new ArrayList<Loggable>();
         while (inputStream.read(loggables)) {
@@ -243,7 +275,6 @@ public class TranxLogger implements ITranxLogger {
         File tranxDir = new File(parent, tranxName);
 
         File activeLog = null;
-        long latestIndex = Long.MIN_VALUE;
 
         for (File log : tranxDir.listFiles()) {
 
@@ -255,13 +286,15 @@ public class TranxLogger implements ITranxLogger {
                 continue;
             }
 
-            long index = Long.parseLong(parts[1]);
-            if (index >= latestIndex) {
-                latestIndex = index;
+            int index = Integer.parseInt(parts[1]);
+            if (index >= logIndex) {
+                logIndex = index;
                 activeLog = log;
             }
         }
 
+        // 为了保证不重复每次重启后tranxId会取一个尽可能小的没有用的tranxId, 最多浪费 LOG_MAX_TRANX_NUM个
+        tranxId.set((logIndex <= 0 ? 0 : logIndex + 1) * LOG_MAX_TRANX_NUM);
         return activeLog;
     }
 
@@ -274,20 +307,23 @@ public class TranxLogger implements ITranxLogger {
      */
     private void innerLog(List<Loggable> loggables) {
         for (Loggable loggable : loggables) {
-            synchronized (this) {   // 尽可能减小临界区域
+            synchronized (lock) {   // 尽可能减小临界区域
                 outputStream.write(loggable);
             }
         }
     }
 
-    private synchronized void checkLogFull() {
-        if (tranxId.get() % LOG_MAX_TRANX_NUM == 0) {
-            try {
-                File logFile = create();
-                outputStream = new TranxLogFileOutputStream(logFile); //要保证安全发布
-                LOG.debug("log to new file.");
-            } catch (IOException e) {
-                LOG.error("create log file failed", e);
+    private void checkLogFull() {
+        synchronized (lock) {
+            if (tranxCnt >= LOG_MAX_TRANX_NUM) {
+                try {
+                    File logFile = create();
+                    outputStream = new TranxLogFileOutputStream(logFile); //要保证安全发布
+                    tranxCnt = 0;
+                    LOG.debug("log to new file.");
+                } catch (IOException e) {
+                    LOG.error("create log file failed", e);
+                }
             }
         }
     }
@@ -296,7 +332,7 @@ public class TranxLogger implements ITranxLogger {
      * 在logDir创建一个新的log文件, 由于创建日志文件的条件：
      * a)初始状态下
      * b)前一个日志文件写满，即一个文件中写满了LOG_MAX_TRANX_NUM记录
-     * 所以创建文件时tranxId要满足条件:tranxId.get() % LOG_MAX_TRANX_NUM == 0
+     * 所以创建文件时tranxId要满足条件:tranxCnt >  LOG_MAX_TRANX_NUM
      *
      * @return
      * @throws IOException
@@ -309,14 +345,14 @@ public class TranxLogger implements ITranxLogger {
             tranxDir.mkdirs();
         }
 
-        if (tranxId.get() % LOG_MAX_TRANX_NUM != 0) {
+        if (tranxCnt < LOG_MAX_TRANX_NUM) {
             LOG.error("illegal log file index {}", tranxId.get());
             //throw new IllegalStateException("illegal tranxId, when create log file");
         }
 
-        File logFile = new File(tranxDir, buildLogName(tranxId.get() / LOG_MAX_TRANX_NUM));
+        File logFile = new File(tranxDir, buildLogName(++logIndex));
         logFile.createNewFile();
-        LOG.info("create new log file index: {}", tranxId.get() / LOG_MAX_TRANX_NUM);
+        LOG.info("create new log file index: {}", logIndex);
         return logFile;
     }
 
