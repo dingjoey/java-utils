@@ -37,7 +37,7 @@ public class TranxLoggerBenchMark {
 
             }
         };
-        benchmark.run(10, 5000, "logTranx", method);
+        benchmark.run(1, 5000, "logTranx", method);
 
         logger.closeLogging();
     }
