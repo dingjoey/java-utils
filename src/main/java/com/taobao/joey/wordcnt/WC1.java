@@ -46,6 +46,7 @@ public class WC1 {
         System.out.println("read file consumes: " + (endReadFile - startReadFile) + "ms");
         System.out.println("word cnt consumes: " + (endWordCnt - startWordCnt) + "ms");
         System.out.println("rank consumes: " + (endTopTen - startTopTen) + "ms");
+        System.out.println("total consumes: " + (endTopTen - startReadFile) + "ms");
     }
 
     static void mmapRead() throws IOException, URISyntaxException {
