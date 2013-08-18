@@ -104,9 +104,13 @@ public class WC2 {
      */
     static void wordCnt(int startIndex, int endIndex, Map<String, Integer> wordCnt) {
         long start = System.currentTimeMillis();
+        long end = System.currentTimeMillis();
+          /*
+        long start = System.currentTimeMillis();
         String all = new String(chunk, startIndex, endIndex - startIndex);
         long end = System.currentTimeMillis();
         System.out.println("create word string consumes : " + (end - start));
+
 
         start = System.currentTimeMillis();
         String[] words = all.split("\\W+");
@@ -123,6 +127,42 @@ public class WC2 {
                 wordCnt.put(lower, ++cnt);
             }
         }
+         */
+        int wordStartIndex = -1;
+        int wordEndIndex = -1;
+        for (int i = startIndex; i < endIndex; i++) {
+            if (!isSplitter(chunk[i])) {
+                if (wordStartIndex == -1) {
+                    wordStartIndex = i;
+                    wordEndIndex = wordStartIndex;
+                } else {
+                    wordEndIndex++;
+                }
+            } else {
+                if (wordStartIndex != -1) {
+                    int len = wordEndIndex + 1 - wordStartIndex;
+                    byte[] wordByte = new byte[len];
+                    for(int j = 0; j < len; ++j){
+                        byte c = chunk[wordStartIndex + j];
+                        if(c>='A' && c<='Z'){
+                            wordByte[j] = (byte)(c +32);
+                        } else{
+                            wordByte[j] = c;
+                        }
+                    }
+                    String word = new String(wordByte);
+
+                    Integer cnt = wordCnt.get(word);
+                    if (cnt == null) {
+                        wordCnt.put(word, 1);
+                    } else {
+                        wordCnt.put(word, ++cnt);
+                    }
+                    wordStartIndex = -1;
+                }
+            }
+        }
+
         end = System.currentTimeMillis();
         System.out.println("word cnt consumes : " + (end - start));
     }
