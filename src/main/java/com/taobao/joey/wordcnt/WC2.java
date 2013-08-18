@@ -34,7 +34,7 @@ public class WC2 {
     static long fileLength;
     static int splitLength;
     //
-    static int wordCntThreadsNum = 4;
+    static int wordCntThreadsNum = 8;
     static CountDownLatch latch = new CountDownLatch(wordCntThreadsNum);
     static HashMap<Integer, HashMap<String, Integer>> threadLocalWordCnt = new HashMap<Integer, HashMap<String, Integer>>(wordCntThreadsNum);
 
