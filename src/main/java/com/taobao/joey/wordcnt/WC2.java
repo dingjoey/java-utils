@@ -92,9 +92,17 @@ public class WC2 {
      * 3. count
      */
     static void wordCnt(int startIndex, int endIndex, Map<String, Integer> wordCnt) {
+        long start = System.currentTimeMillis();
         String all = new String(chunk, startIndex, endIndex - startIndex);
-        String[] words = all.split("\\W+");
+        long end = System.currentTimeMillis();
+        System.out.println("create word string consumes : " + (end - start));
 
+        start = System.currentTimeMillis();
+        String[] words = all.split("\\W+");
+        end = System.currentTimeMillis();
+        System.out.println("split word consumes : " + (end - start));
+
+        start = System.currentTimeMillis();
         for (String word : words) {
             String lower = word.toLowerCase();
             Integer cnt = wordCnt.get(lower);
@@ -104,16 +112,62 @@ public class WC2 {
                 wordCnt.put(lower, ++cnt);
             }
         }
+        end = System.currentTimeMillis();
+        System.out.println("word cnt consumes : " + (end - start));
+    }
+
+    static void wordCnt1(int startIndex, int endIndex, Map<String, Integer> wordCnt) {
+        ArrayList<String> words = new ArrayList<String>(100000);
+
+        long start = System.currentTimeMillis();
+        int wordStartIndex = -1;
+        int wordEndIndex = -1;
+        for (int i = startIndex; i < endIndex; i++) {
+            if (!isSplitter(chunk[i])) {
+                if (wordStartIndex == -1) {
+                    wordStartIndex = i;
+                    wordEndIndex = wordStartIndex;
+                } else {
+                    wordEndIndex++;
+                }
+            } else {
+                if (wordStartIndex != -1) {
+                    //byte[] wordByte = Arrays.copyOfRange(chunk, wordStartIndex, wordEndIndex + 1);
+                    //String word = new String(wordByte).toLowerCase();
+                    //words.add(word);
+                    wordStartIndex = -1;
+                }
+            }
+        }
+        long end = System.currentTimeMillis();
+        System.out.println("split word consumes : " + (end - start));
+
+        start = System.currentTimeMillis();
+        for (String word : words) {
+            String lower = word.toLowerCase();
+            Integer cnt = wordCnt.get(lower);
+            if (cnt == null) {
+                wordCnt.put(lower, 1);
+            } else {
+                wordCnt.put(lower, ++cnt);
+            }
+        }
+        end = System.currentTimeMillis();
+        System.out.println("word cnt consumes : " + (end - start));
     }
 
     /**
      *
      */
     static void topTen() {
-        /*
-        for (Map.Entry<String, Integer> entry : wordCnt.entrySet()) {
+        for (Map.Entry<String, Integer> entry : threadLocalWordCnt.get(0).entrySet()) {
             String word = entry.getKey();
             int cnt = entry.getValue();
+
+            for (int i = 1; i < threadLocalWordCnt.size(); i++) {
+                Integer c = threadLocalWordCnt.get(i).get(word);
+                if (c != null) cnt += c;
+            }
 
             int i = 0;
             for (; i < cntRank.size(); i++) {
@@ -129,7 +183,7 @@ public class WC2 {
             if (stopWords.contains(word)) continue;
             System.out.println(word + ":" + cntRank.get(i));
             hit++;
-        }  */
+        }
     }
 
     static boolean isSplitter(byte c) {
