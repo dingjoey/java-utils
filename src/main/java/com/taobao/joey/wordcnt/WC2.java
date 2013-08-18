@@ -48,6 +48,10 @@ public class WC2 {
         if (args.length > 0) {
             wordCntThreadsNum = Integer.parseInt(args[0]);
             latch = new CountDownLatch(wordCntThreadsNum);
+            threadLocalWordCnt = new HashMap<Integer, HashMap<String, Integer>>(wordCntThreadsNum);
+            for (int i = 0; i < wordCntThreadsNum; i++) {
+                threadLocalWordCnt.put(i, new HashMap<String, Integer>());
+            }
             System.out.println("using threads : " + wordCntThreadsNum);
         }
 
