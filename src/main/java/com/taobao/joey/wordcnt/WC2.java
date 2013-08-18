@@ -45,6 +45,10 @@ public class WC2 {
     }
 
     public static void main(String[] args) throws IOException, URISyntaxException, InterruptedException {
+        if (args.length > 0) {
+            wordCntThreadsNum = Integer.parseInt(args[0]);
+        }
+
         long startReadFile = System.currentTimeMillis();
         mmapRead();
         long endReadFile = System.currentTimeMillis();
