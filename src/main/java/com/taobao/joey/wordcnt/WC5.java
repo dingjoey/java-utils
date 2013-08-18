@@ -159,8 +159,20 @@ public class WC5 {
                     }
                 } else {
                     if (wordStartIndex != -1) {
-                        byte[] wordByte = Arrays.copyOfRange(chunk, wordStartIndex, wordEndIndex + 1);
-                        String word = new String(wordByte).toLowerCase();
+                        //byte[] wordByte = Arrays.copyOfRange(chunk, wordStartIndex, wordEndIndex + 1);
+                        //String word = new String(wordByte).toLowerCase();
+                        int len = wordEndIndex + 1 - wordStartIndex;
+                        byte[] wordByte = new byte[len];
+                        for(int j = 0; j < len; ++j){
+                            byte c = chunk[wordStartIndex + j];
+                            if(c>='A' && c<='Z'){
+                                wordByte[j] = (byte)(c +32);
+                            } else{
+                                wordByte[j] = c;
+                            }
+                        }
+                        String word = new String(wordByte);
+
                         int index = word.hashCode() % countThreadNum;
                         output.get(index > 0 ? index : 0 - index).add(word);
                         wordStartIndex = -1;
