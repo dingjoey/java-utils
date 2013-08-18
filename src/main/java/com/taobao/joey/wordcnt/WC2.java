@@ -171,6 +171,8 @@ public class WC2 {
      *
      */
     static void topTen() {
+
+        // TODO bugs
         for (Map.Entry<String, Integer> entry : threadLocalWordCnt.get(0).entrySet()) {
             String word = entry.getKey();
             int cnt = entry.getValue();

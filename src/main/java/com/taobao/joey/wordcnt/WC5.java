@@ -183,10 +183,10 @@ public class WC5 {
         final int id;
         final List<String> input = new ArrayList<String>();
         final List<WordCntResult> output;
+        final Map<String, Integer> wc = new HashMap<String, Integer>(50000, 0.9f);
 
         CountTaskRunnable(int id) {
             this.id = id;
-            long start = System.currentTimeMillis();
             for (List<List<String>> output : splitTaskOutput) {
                 for (int i = 0; i < output.size(); i++) {
                     if (i % countThreadNum == id) {
@@ -195,11 +195,40 @@ public class WC5 {
                 }
             }
             long end = System.currentTimeMillis();
-            System.out.println("count input create consumes: " + (end - start));
             output = countTaskOutput.get(id);
         }
 
         public void run() {
+            long start = System.currentTimeMillis();
+            for (String word : input) {
+                Integer c = wc.get(word);
+                if (c == null) {
+                    wc.put(word, 1);
+                } else {
+                    wc.put(word, ++c);
+                }
+            }
+            long end = System.currentTimeMillis();
+            System.out.println("wc consumes : " + (end -start));
+
+            start = System.currentTimeMillis();
+            for (Map.Entry<String, Integer> entry : wc.entrySet()) {
+                int i = 0;
+                for (; i < output.size(); i++) {
+                    if (entry.getValue() > output.get(i).cnt) break;
+                }
+
+                if (i < output.size()) {
+                    output.add(i, new WordCntResult(entry.getKey(), entry.getValue()));
+                }
+
+                if (i == output.size() && output.size() < 10) {
+                    output.add(new WordCntResult(entry.getKey(), entry.getValue()));
+                }
+            }
+            end = System.currentTimeMillis();
+            System.out.println("rank consumes : " + (end -start));
+            /*
             long start = System.currentTimeMillis();
             Collections.sort(input);
             long end = System.currentTimeMillis();
@@ -229,6 +258,7 @@ public class WC5 {
                     last = word;
                 }
             }
+            */
             countTaskBarrier.countDown();
         }
     }
