@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * taobao.com Inc. Copyright (c) 1998-2101 All Rights Reserved.
@@ -16,27 +17,46 @@ import java.util.*;
  * Date: 13-8-18
  * Time: ÏÂÎç1:54
  */
-public class WC1 {
+public class WC2 {
     //
     static int PAGE_SIZE = 65535;
     static byte[] chunk;
     //
     static byte[] punctuation
             = {'.', ',', ';', '-', '~', '?', '!', '\'', '\"', '\r', '\n', '\t', ' '};
-    static Map<String, Integer> wordCnt = new HashMap<String, Integer>(40000, 0.99f);
+    //static Map<String, Integer> threadLocalWordCnt = new HashMap<String, Integer>(40000, 0.99f);
     //
     static List<String> wordRank = new ArrayList<String>(10);
     static List<Integer> cntRank = new ArrayList<Integer>(10);
     static HashSet<String> stopWords
             = new HashSet<String>(Arrays.asList("the", "and", "i", "to", "of", "a", "in", "was", "that", "had", "he", "you", "his", "my", "it", "as", "with", "her", "for", "on"));
+    //
+    static long fileLength;
+    static int splitLength;
+    //
+    static int wordCntThreadsNum = 4;
+    static CountDownLatch latch = new CountDownLatch(wordCntThreadsNum);
+    static HashMap<Integer, HashMap<String, Integer>> threadLocalWordCnt = new HashMap<Integer, HashMap<String, Integer>>(wordCntThreadsNum);
 
-    public static void main(String[] args) throws IOException, URISyntaxException {
+    static {
+        for (int i = 0; i < wordCntThreadsNum; i++) {
+            threadLocalWordCnt.put(i, new HashMap<String, Integer>());
+        }
+    }
+
+    public static void main(String[] args) throws IOException, URISyntaxException, InterruptedException {
         long startReadFile = System.currentTimeMillis();
         mmapRead();
         long endReadFile = System.currentTimeMillis();
 
         long startWordCnt = System.currentTimeMillis();
-        wordCnt(0, chunk.length);
+        splitLength = chunk.length / wordCntThreadsNum;
+        Thread[] threads = new Thread[wordCntThreadsNum];
+        for (int i = 0; i < wordCntThreadsNum; i++) {
+            threads[i] = new Thread(new WordCntRunnable(i));
+            threads[i].start();
+        }
+        latch.await();
         long endWordCnt = System.currentTimeMillis();
 
         long startTopTen = System.currentTimeMillis();
@@ -49,12 +69,12 @@ public class WC1 {
     }
 
     static void mmapRead() throws IOException, URISyntaxException {
-        File file = new File(WC1.class.getResource("/document.txt").toURI());
+        File file = new File(WC2.class.getResource("/document.txt").toURI());
 
         MappedByteBuffer buffer = new RandomAccessFile(file, "rw").getChannel()
                 .map(FileChannel.MapMode.READ_WRITE, 0, file.length());
 
-        long fileLength = file.length();
+        fileLength = file.length();
         chunk = new byte[(int) fileLength];
         int chunkSize = PAGE_SIZE;
         for (int i = 0; i < chunk.length && buffer.hasRemaining(); ) {
@@ -71,9 +91,10 @@ public class WC1 {
      * 2. to lower case
      * 3. count
      */
-    static void wordCnt(int startIndex, int endIndex) {
+    static void wordCnt(int startIndex, int endIndex, Map<String, Integer> wordCnt) {
         String all = new String(chunk, startIndex, endIndex - startIndex);
         String[] words = all.split("\\W+");
+
         for (String word : words) {
             String lower = word.toLowerCase();
             Integer cnt = wordCnt.get(lower);
@@ -89,6 +110,7 @@ public class WC1 {
      *
      */
     static void topTen() {
+        /*
         for (Map.Entry<String, Integer> entry : wordCnt.entrySet()) {
             String word = entry.getKey();
             int cnt = entry.getValue();
@@ -107,7 +129,7 @@ public class WC1 {
             if (stopWords.contains(word)) continue;
             System.out.println(word + ":" + cntRank.get(i));
             hit++;
-        }
+        }  */
     }
 
     static boolean isSplitter(byte c) {
@@ -117,4 +139,30 @@ public class WC1 {
         return false;
     }
 
+    static class WordCntRunnable implements Runnable {
+        final int id;
+        final Map<String, Integer> wordCnt;
+
+        WordCntRunnable(int id) {
+            this.id = id;
+            wordCnt = threadLocalWordCnt.get(id);
+        }
+
+        public void run() {
+            int startIndex = id * splitLength;
+            if (startIndex != 0) {
+                while (!isSplitter(chunk[startIndex])) {
+                    startIndex++;
+                }
+            }
+
+            int endIndex = (id + 1) * splitLength - 1;
+            while (!isSplitter(chunk[endIndex])) {
+                endIndex++;
+            }
+
+            wordCnt(startIndex, endIndex, wordCnt);
+            latch.countDown();
+        }
+    }
 }
