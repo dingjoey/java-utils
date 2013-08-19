@@ -26,8 +26,8 @@ public class WC9 {
     static HashSet<String> stopWords
             = new HashSet<String>(Arrays.asList("the", "and", "i", "to", "of", "a", "in", "was", "that", "had", "he", "you", "his", "my", "it", "as", "with", "her", "for", "on"));
     //
-    static int top;
-    static int candidateSize;
+    static int top = 10;
+    static int candidateSize = stopWords.size();
     // ¶ÁÎÄ¼þÓÃ
     static int PAGE_SIZE = 65535;
     static byte[] chunk;
@@ -45,6 +45,9 @@ public class WC9 {
     //static List<List<List<JString>>> splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
     static List<JString[][]> splitRankArray = new ArrayList<JString[][]>(rankThreadNum);
     static CountDownLatch rankRunnablelatch = new CountDownLatch(rankThreadNum);
+    // merge runnable
+    static JString[][] splitRankResult = new JString[rankThreadNum][top];
+    static int[][] splitCntResult = new int[rankThreadNum][top];
 
     static {
         try {
@@ -114,7 +117,10 @@ public class WC9 {
             threads2[i].start();
         }
         rankRunnablelatch.await();
+
+        merge();
         long endTopTen = System.currentTimeMillis();
+
 
         System.out.println("read file consumes: " + (endReadFile - startReadFile) + "ms");
         System.out.println("word cnt consumes: " + (endWordCnt - startWordCnt) + "ms");
@@ -187,6 +193,32 @@ public class WC9 {
             return false;
         }
         return stopWords.contains(word.toString());
+    }
+
+    static void merge()
+    {   ArrayList<JString> topTen = new ArrayList<JString>();
+        int index[] = new int[rankThreadNum];
+
+        for (int i = 0; i < 10; i++) {
+            int max = 0;
+            JString top = null;
+            int maxIndex = -1;
+            for (int j = 0; j < rankThreadNum; j++) {
+                int cnt = splitCntResult[j][index[j]];
+                if(max < cnt){
+                    max = cnt;
+                    top = splitRankResult[j][index[j]];
+                    maxIndex = j;
+                }
+
+            }
+            index[maxIndex]++;
+            topTen.add(top);
+        }
+
+        for(JString word : topTen){
+            System.out.println(word);
+        }
     }
 
     static class MutableInt {
@@ -273,12 +305,16 @@ public class WC9 {
         final Map<JString, MutableInt> split;
         final JString[][] rank;
         final int[] index;
+        final JString[] result;
+        final int[] cnt;
 
         RankRunnable(int id) {
             this.id = id;
             split = splitWC.get(id);
             rank = splitRankArray.get(id);
             index = new int[rank.length];
+            result = splitRankResult[id];
+            cnt = splitCntResult[id];
         }
 
         public void run() {
@@ -292,16 +328,17 @@ public class WC9 {
                 if (cnt > max) max = cnt;
             }
 
-            int cnt = 0;
+            int c = 0;
             for (int i = max; i >= 0; i--) {
                 JString[] words = rank[i];
                 if (words == null) continue;
                 for (int j = 0; j < index[i]; j++) {
                     JString word = words[j];
                     if (!isStopWords(word)) {
-                        if (cnt >= top) break;
-                        cnt++;
-                        System.out.println(word + ":" + i);
+                        if (c >= top) break;
+                        result[c] = word;
+                        cnt[c] = i;
+                        c++;
                     }
                 }
             }
