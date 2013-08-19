@@ -46,7 +46,7 @@ public class WC9 {
 
     static {
         try {
-            init(4, 4, 10);
+            init(16, 16, 10);
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
@@ -73,7 +73,7 @@ public class WC9 {
         }
 
         int avgWordLen = 5;
-        int avgFreq = 10;
+        int avgFreq = 50;
         int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
         splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
         for (int i = 0; i < rankThreadNum; i++) {
@@ -277,7 +277,7 @@ public class WC9 {
             }
 
             int cnt = 0;
-            for (int i = rank.size(); i >= 0; i++) {
+            for (int i = rank.size() - 1; i >= 0; i++) {
                 for (JString word : rank.get(i)) {
                     if (cnt >= 10) break;
                     System.out.println(word + ":" + i);
