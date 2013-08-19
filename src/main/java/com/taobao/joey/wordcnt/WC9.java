@@ -57,7 +57,7 @@ public class WC9 {
         top = t;
         candidateSize = top + stopWords.size();
         //
-        file = new File(WC8.class.getResource("/document.txt").toURI());
+        file = new File(WC9.class.getResource("/document.txt").toURI());
         fileLength = file.length();
         chunk = new byte[(int) fileLength];
         chunkSize = PAGE_SIZE;
