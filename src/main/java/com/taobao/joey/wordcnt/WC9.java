@@ -9,6 +9,7 @@ import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * taobao.com Inc. Copyright (c) 1998-2101 All Rights Reserved.
@@ -22,9 +23,31 @@ public class WC9 {
     //
     static byte[] punctuation
             = {'.', ',', ';', '-', '~', '?', '!', '\'', '\"', '\r', '\n', '\t', ' '};
-    static HashSet<String> stopWords
-            = new HashSet<String>(Arrays.asList("the", "and", "i", "to", "of", "a", "in", "was", "that", "had", "he", "you", "his", "my", "it", "as", "with", "her", "for", "on"));
+    static HashSet<JString> stopWords
+            = new HashSet<JString>(Arrays.asList(
+            new JString("the".getBytes()),
+            new JString("and".getBytes()),
+            new JString("i".getBytes()),
+            new JString("to".getBytes()),
+            new JString("of".getBytes()),
+            new JString("a".getBytes()),
+            new JString("in".getBytes()),
+            new JString("was".getBytes()),
+            new JString("that".getBytes()),
+            new JString("had".getBytes()),
+            new JString("he".getBytes()),
+            new JString("you".getBytes()),
+            new JString("his".getBytes()),
+            new JString("my".getBytes()),
+            new JString("it".getBytes()),
+            new JString("as".getBytes()),
+            new JString("with".getBytes()),
+            new JString("her".getBytes()),
+            new JString("for".getBytes()),
+            new JString("on".getBytes())
+    ));
     //
+    static int splitall = 0;
     static int top;
     static int candidateSize;
     // 读文件用
@@ -72,6 +95,7 @@ public class WC9 {
             splitWC.add(new ConcurrentHashMap<JString, MutableInt>(50000, 0.9f));
         }
 
+        /*
         int avgWordLen = 5;
         int avgFreq = 50;
         //int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
@@ -84,7 +108,8 @@ public class WC9 {
                 rank.add(new ArrayList<JString>(candidateSize)); //at most top + stopword.size
             }
             splitRank.add(rank);
-        }
+        } */
+
         rankRunnablelatch = new CountDownLatch(rankThreadNum);
     }
 
@@ -104,6 +129,7 @@ public class WC9 {
         long endWordCnt = System.currentTimeMillis();
 
         long startTopTen = System.currentTimeMillis();
+
         Thread[] threads2 = new Thread[wcThreadNum];
         for (int i = 0; i < wcThreadNum; i++) {
             threads2[i] = new Thread(new RankRunnable(i));
@@ -144,6 +170,9 @@ public class WC9 {
                 }
             } else {
                 if (wordStartIndex != -1) {
+
+                    splitall++;// 用于估算有多少单词
+
                     // 一次遍历完成：1) to lower case; 2) compute hashcode
                     int hashcode = 0;
                     for (int j = wordStartIndex; j < wordEndIndex + 1; ++j) {
@@ -180,22 +209,25 @@ public class WC9 {
     }
 
     static class MutableInt {
-        int value = 1;
+        AtomicInteger value = new AtomicInteger(1);
 
         void inc() {
-            ++value;
+            value.getAndIncrement();
         }
 
         int get() {
-            return value;
+            return value.get();
         }
     }
 
     static class JString {
-        final int start;
-        final int end;
-        final int hashcode;
-        final int len;
+        //
+        int start;
+        int end;
+        int hashcode;
+        int len;
+        //
+        byte[] bytes;
 
         JString(int start, int end, int hashcode) {
             this.start = start;
@@ -204,26 +236,55 @@ public class WC9 {
             len = end - start + 1;
         }
 
+        JString(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (!(o instanceof JString)) return false;
 
             JString jString = (JString) o;
-            if (this.start == jString.start) return true;
+            if (bytes == null && jString.bytes == null) {
+                if (this.start == jString.start) return true;
 
-            if (this.len != jString.len) return false;
-            for (int i = 0; i < len; i++) {
-                if (chunk[this.start + i] != chunk[jString.start + i]) {
-                    return false;
+                if (this.len != jString.len) return false;
+                for (int i = 0; i < len; i++) {
+                    if (chunk[this.start + i] != chunk[jString.start + i]) {
+                        return false;
+                    }
+                }
+            } else {
+                // this 对象来自文本, jString来自stopword
+                if(this.bytes == null && jString.bytes != null){
+                    if(jString.bytes.length != this.len) return false;
+                    for (int i = 0; i < len; i++) {
+                        if (chunk[this.start + i] != jString.bytes[i]) {
+                            return false;
+                        }
+                    }
+                } else{  // this来自stopword  , jString 对象来自文本
+                    if(jString.len != this.bytes.length) return false;
+                    for (int i = 0; i < len; i++) {
+                        if (chunk[jString.start + i] != this.bytes[i]) {
+                            return false;
+                        }
+                    }
                 }
             }
-
             return true;
         }
 
         @Override
         public int hashCode() {
+
+            if (hashcode == 0) { // 来自stopword
+                for (int i = 0; i < bytes.length; i++) {
+                    hashcode = 31 * hashcode + bytes[i];
+                }
+            }
+
             return this.hashcode;
         }
 
@@ -261,31 +322,27 @@ public class WC9 {
     static class RankRunnable implements Runnable {
         final int id;
         final Map<JString, MutableInt> split;
-        final List<List<JString>> rank;
+        //final List<List<JString>> rank;
 
         RankRunnable(int id) {
             this.id = id;
             split = splitWC.get(id);
-            rank = splitRank.get(id);
+            //rank = splitRank.get(id);
         }
 
         public void run() {
+            JString topWord = null;
+            int max = 0;
             for (Map.Entry<JString, MutableInt> entry : split.entrySet()) {
-                int cnt = entry.getValue().value;
-                List<JString> pos = rank.get(cnt);
-                if (pos.size() > candidateSize) continue;
-                pos.add(entry.getKey());
-            }
-
-            int cnt = 0;
-            for (int i = rank.size() - 1; i >= 0; i--) {
-                for (JString word : rank.get(i)) {
-                    if (cnt >= 10) break;
-                    System.out.println(word + ":" + i);
-                    cnt++;
+                int cnt = entry.getValue().get();
+                JString word = entry.getKey();
+                if (cnt > max && !stopWords.contains(word)) {
+                    max = cnt;
+                    topWord = word;
                 }
-
             }
+
+            System.out.println("maxCnt : " + max + ", word : " + topWord);
             rankRunnablelatch.countDown();
         }
     }
