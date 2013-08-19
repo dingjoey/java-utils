@@ -26,21 +26,42 @@ public class WC7 {
             = {'.', ',', ';', '-', '~', '?', '!', '\'', '\"', '\r', '\n', '\t', ' '};
     //static Map<String, Integer> threadLocalWordCnt = new HashMap<String, Integer>(40000, 0.99f);
     //
-    static List<String> wordRank = new ArrayList<String>(10);
+    static List<JString> wordRank = new ArrayList<JString>(10);
     static List<Integer> cntRank = new ArrayList<Integer>(10);
-    static HashSet<String> stopWords
-            = new HashSet<String>(Arrays.asList("the", "and", "i", "to", "of", "a", "in", "was", "that", "had", "he", "you", "his", "my", "it", "as", "with", "her", "for", "on"));
+    static HashSet<JString> stopWords
+            = new HashSet<JString>(Arrays.asList(
+            new JString("the".getBytes()),
+            new JString("and".getBytes()),
+            new JString("i".getBytes()),
+            new JString("to".getBytes()),
+            new JString("of".getBytes()),
+            new JString("a".getBytes()),
+            new JString("in".getBytes()),
+            new JString("was".getBytes()),
+            new JString("that".getBytes()),
+            new JString("had".getBytes()),
+            new JString("he".getBytes()),
+            new JString("you".getBytes()),
+            new JString("his".getBytes()),
+            new JString("my".getBytes()),
+            new JString("it".getBytes()),
+            new JString("as".getBytes()),
+            new JString("with".getBytes()),
+            new JString("her".getBytes()),
+            new JString("for".getBytes()),
+            new JString("on".getBytes())
+            ));
     //
     static long fileLength;
     static int splitLength;
     //
     static int wordCntThreadsNum = 8;
     static CountDownLatch latch = new CountDownLatch(wordCntThreadsNum);
-    static List<HashMap<String, MutableInt>> threadLocalWordCntMutableInt = new ArrayList<HashMap<String, MutableInt>>(wordCntThreadsNum);
+    static List<HashMap<JString, MutableInt>> threadLocalWordCntMutableInt = new ArrayList<HashMap<JString, MutableInt>>(wordCntThreadsNum);
 
     static {
         for (int i = 0; i < wordCntThreadsNum; i++) {
-            threadLocalWordCntMutableInt.add(new HashMap<String, MutableInt>());
+            threadLocalWordCntMutableInt.add(new HashMap<JString, MutableInt>());
         }
     }
     static class MutableInt {
@@ -48,14 +69,45 @@ public class WC7 {
         void inc() { ++value; }
         int get() { return value; }
     }
+    static class JString{
+        byte[] value;
+
+        JString(byte[] value) {
+            this.value = value;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof JString)) return false;
+
+            JString jString = (JString) o;
+
+            if (!Arrays.equals(value, jString.value)) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(value);
+        }
+
+        @Override
+        public String toString() {
+            return new String(value);
+        }
+    }
+
+
     public static void main(String[] args) throws IOException, URISyntaxException, InterruptedException {
         if (args.length > 0) {
             wordCntThreadsNum = Integer.parseInt(args[0]);
             latch = new CountDownLatch(wordCntThreadsNum);
 
-            threadLocalWordCntMutableInt =  new ArrayList<HashMap<String, MutableInt>>(wordCntThreadsNum);
+            threadLocalWordCntMutableInt =  new ArrayList<HashMap<JString, MutableInt>>(wordCntThreadsNum);
             for (int i = 0; i < wordCntThreadsNum; i++) {
-                threadLocalWordCntMutableInt.add(new HashMap<String, MutableInt>());
+                threadLocalWordCntMutableInt.add(new HashMap<JString, MutableInt>());
             }
             System.out.println("using threads : " + wordCntThreadsNum);
         }
@@ -106,7 +158,7 @@ public class WC7 {
      * 2. to lower case
      * 3. count
      */
-    static void wordCntUsingMutableInt(int startIndex, int endIndex, Map<String, MutableInt> wordCnt) {
+    static void wordCntUsingMutableInt(int startIndex, int endIndex, Map<JString, MutableInt> wordCnt) {
         long start = System.currentTimeMillis();
         int wordStartIndex = -1;
         int wordEndIndex = -1;
@@ -130,8 +182,7 @@ public class WC7 {
                             wordByte[j] = c;
                         }
                     }
-
-                    String word = new String(wordByte);
+                    JString word = new JString(wordByte);
                     MutableInt cnt = wordCnt.get(word);
                     if (cnt == null) {
                         wordCnt.put(word, new MutableInt());
@@ -142,16 +193,14 @@ public class WC7 {
                 }
             }
         }
-
         long end = System.currentTimeMillis();
         System.out.println("word cnt consumes : " + (end - start));
     }
 
     static void topTenUsingMutableInt() {
-
         // TODO bugs
-        for (Map.Entry<String, MutableInt> entry : threadLocalWordCntMutableInt.get(0).entrySet()) {
-            String word = entry.getKey();
+        for (Map.Entry<JString, MutableInt> entry : threadLocalWordCntMutableInt.get(0).entrySet()) {
+            JString word = entry.getKey();
             MutableInt cnt = entry.getValue();
 
             for (int i = 1; i < threadLocalWordCntMutableInt.size(); i++) {
@@ -169,7 +218,7 @@ public class WC7 {
 
         int hit = 0;
         for (int i = 0; i < cntRank.size() && hit < 10; i++) {
-            String word = wordRank.get(i);
+            JString word = wordRank.get(i);
             if (stopWords.contains(word)) continue;
             System.out.println(word + ":" + cntRank.get(i));
             hit++;
@@ -185,7 +234,7 @@ public class WC7 {
 
     static class WordCntRunnable implements Runnable {
         final int id;
-        final Map<String, MutableInt> wordCntMutableInt;
+        final Map<JString, MutableInt> wordCntMutableInt;
 
         WordCntRunnable(int id) {
             this.id = id;
