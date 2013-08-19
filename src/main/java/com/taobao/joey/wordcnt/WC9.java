@@ -74,7 +74,8 @@ public class WC9 {
 
         int avgWordLen = 5;
         int avgFreq = 50;
-        int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
+        //int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
+        int radixSortSize = 10;
         splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
         for (int i = 0; i < rankThreadNum; i++) {
             // 用于基数排序
@@ -153,7 +154,7 @@ public class WC9 {
                         hashcode = hashcode * 31 + chunk[j];
                     }
                     // 避免copy,构造JString对象作为计数的key
-                    JString word = new JString(startIndex, endIndex, hashcode);
+                    JString word = new JString(wordStartIndex, wordEndIndex, hashcode);
                     // mutableInt 一次计数只访问一次map
                     int index = hashcode % splitWC.size();
                     Map<JString, MutableInt> splitWordCnt = splitWC.get(index > 0 ? index : 0 - index);
