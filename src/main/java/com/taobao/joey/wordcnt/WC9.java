@@ -277,7 +277,7 @@ public class WC9 {
             }
 
             int cnt = 0;
-            for (int i = rank.size() - 1; i >= 0; i++) {
+            for (int i = rank.size() - 1; i >= 0; i--) {
                 for (JString word : rank.get(i)) {
                     if (cnt >= 10) break;
                     System.out.println(word + ":" + i);
