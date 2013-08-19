@@ -9,6 +9,7 @@ import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * taobao.com Inc. Copyright (c) 1998-2101 All Rights Reserved.
@@ -22,31 +23,9 @@ public class WC9 {
     //
     static byte[] punctuation
             = {'.', ',', ';', '-', '~', '?', '!', '\'', '\"', '\r', '\n', '\t', ' '};
-    static HashSet<JString> stopWords
-            = new HashSet<JString>(Arrays.asList(
-            new JString("the".getBytes()),
-            new JString("and".getBytes()),
-            new JString("i".getBytes()),
-            new JString("to".getBytes()),
-            new JString("of".getBytes()),
-            new JString("a".getBytes()),
-            new JString("in".getBytes()),
-            new JString("was".getBytes()),
-            new JString("that".getBytes()),
-            new JString("had".getBytes()),
-            new JString("he".getBytes()),
-            new JString("you".getBytes()),
-            new JString("his".getBytes()),
-            new JString("my".getBytes()),
-            new JString("it".getBytes()),
-            new JString("as".getBytes()),
-            new JString("with".getBytes()),
-            new JString("her".getBytes()),
-            new JString("for".getBytes()),
-            new JString("on".getBytes())
-    ));
+    static HashSet<String> stopWords
+            = new HashSet<String>(Arrays.asList("the", "and", "i", "to", "of", "a", "in", "was", "that", "had", "he", "you", "his", "my", "it", "as", "with", "her", "for", "on"));
     //
-    static int splitall = 0;
     static int top;
     static int candidateSize;
     // 读文件用
@@ -63,7 +42,8 @@ public class WC9 {
     // rank runnable
     static int rankThreadNum = 4;
     static List<Map<JString, MutableInt>> splitWC = new ArrayList<Map<JString, MutableInt>>(rankThreadNum * 2);
-    static List<List<List<JString>>> splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
+    //static List<List<List<JString>>> splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
+    static List<JString[][]> splitRankArray = new ArrayList<JString[][]>(rankThreadNum);
     static CountDownLatch rankRunnablelatch = new CountDownLatch(rankThreadNum);
 
     static {
@@ -75,6 +55,7 @@ public class WC9 {
     }
 
     static void init(int wn, int rn, int t) throws URISyntaxException {
+        long start = System.currentTimeMillis();
         //
         top = t;
         candidateSize = top + stopWords.size();
@@ -94,7 +75,21 @@ public class WC9 {
             splitWC.add(new ConcurrentHashMap<JString, MutableInt>(50000, 0.9f));
         }
 
+        int avgWordLen = 5;
+        int avgFreq = 10;
+        int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
+        splitRankArray = new ArrayList<JString[][]>(rankThreadNum);
+        for (int i = 0; i < rankThreadNum; i++) {
+            // 用于基数排序
+            JString[][] rank = new JString[radixSortSize][candidateSize];
+            //System.out.println("init consumes : " + (end - start));
+            // lazy create
+            splitRankArray.add(rank);
+        }
+
         rankRunnablelatch = new CountDownLatch(rankThreadNum);
+        long end = System.currentTimeMillis();
+        System.out.println("init consumes : " + (end - start));
     }
 
     public static void main(String[] args) throws IOException, URISyntaxException, InterruptedException {
@@ -128,7 +123,6 @@ public class WC9 {
     }
 
     static void mmapRead() throws IOException, URISyntaxException {
-
         MappedByteBuffer buffer = new RandomAccessFile(file, "rw").getChannel()
                 .map(FileChannel.MapMode.READ_WRITE, 0, file.length());
 
@@ -188,18 +182,22 @@ public class WC9 {
         return false;
     }
 
+    static boolean isStopWords(JString word) {
+        if (word.len > 6) {// stopword 特征
+            return false;
+        }
+        return stopWords.contains(word.toString());
+    }
+
     static class MutableInt {
-          int value;
-        //AtomicInteger value = new AtomicInteger(1);
+        AtomicInteger value = new AtomicInteger(1);
 
         void inc() {
-            //value.getAndIncrement();
-            value++;
+            value.getAndIncrement();
         }
 
         int get() {
-            //return value.get();
-            return value;
+            return value.get();
         }
     }
 
@@ -209,8 +207,6 @@ public class WC9 {
         int end;
         int hashcode;
         int len;
-        //
-        byte[] bytes;
 
         JString(int start, int end, int hashcode) {
             this.start = start;
@@ -219,56 +215,25 @@ public class WC9 {
             len = end - start + 1;
         }
 
-        JString(byte[] bytes) {
-            this.bytes = bytes;
-        }
-
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (!(o instanceof JString)) return false;
 
             JString jString = (JString) o;
-         //   if (bytes == null && jString.bytes == null) {
-                if (this.start == jString.start) return true;
+            if (this.start == jString.start) return true;
 
-                if (this.len != jString.len) return false;
-                for (int i = 0; i < len; i++) {
-                    if (chunk[this.start + i] != chunk[jString.start + i]) {
-                        return false;
-                    }
+            if (this.len != jString.len) return false;
+            for (int i = 0; i < len; i++) {
+                if (chunk[this.start + i] != chunk[jString.start + i]) {
+                    return false;
                 }
-                /*
-            } else {
-                // this 对象来自文本, jString来自stopword
-                if(this.bytes == null && jString.bytes != null){
-                    if(jString.bytes.length != this.len) return false;
-                    for (int i = 0; i < len; i++) {
-                        if (chunk[this.start + i] != jString.bytes[i]) {
-                            return false;
-                        }
-                    }
-                } else{  // this来自stopword  , jString 对象来自文本
-                    if(jString.len != this.bytes.length) return false;
-                    for (int i = 0; i < len; i++) {
-                        if (chunk[jString.start + i] != this.bytes[i]) {
-                            return false;
-                        }
-                    }
-                }
-            } */
+            }
             return true;
         }
 
         @Override
         public int hashCode() {
-            /*
-            if (hashcode == 0) { // 来自stopword
-                for (int i = 0; i < bytes.length; i++) {
-                    hashcode = 31 * hashcode + bytes[i];
-                }
-            } */
-
             return this.hashcode;
         }
 
@@ -306,27 +271,40 @@ public class WC9 {
     static class RankRunnable implements Runnable {
         final int id;
         final Map<JString, MutableInt> split;
-        //final List<List<JString>> rank;
+        final JString[][] rank;
+        final int[] index;
 
         RankRunnable(int id) {
             this.id = id;
             split = splitWC.get(id);
-            //rank = splitRank.get(id);
+            rank = splitRankArray.get(id);
+            index = new int[rank.length];
         }
 
         public void run() {
-            JString topWord = null;
             int max = 0;
             for (Map.Entry<JString, MutableInt> entry : split.entrySet()) {
                 int cnt = entry.getValue().get();
-                JString word = entry.getKey();
-                if (cnt > max && !stopWords.contains(word)) {
-                    max = cnt;
-                    topWord = word;
-                }
+                int i = index[cnt];
+                if (i >= candidateSize) continue;
+                JString[] words = rank[cnt];
+                words[index[cnt]++] = entry.getKey();
+                if (cnt > max) max = cnt;
             }
 
-            System.out.println("maxCnt : " + max + ", word : " + topWord);
+            int cnt = 0;
+            for (int i = max; i >= 0; i--) {
+                JString[] words = rank[i];
+                if (words == null) continue;
+                for (int j = 0; j < index[i]; j++) {
+                    JString word = words[j];
+                    if (!isStopWords(word)) {
+                        if (cnt >= top) break;
+                        cnt++;
+                        System.out.println(word + ":" + i);
+                    }
+                }
+            }
             rankRunnablelatch.countDown();
         }
     }
