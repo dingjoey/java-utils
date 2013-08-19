@@ -9,7 +9,6 @@ import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * taobao.com Inc. Copyright (c) 1998-2101 All Rights Reserved.
@@ -95,21 +94,6 @@ public class WC9 {
             splitWC.add(new ConcurrentHashMap<JString, MutableInt>(50000, 0.9f));
         }
 
-        /*
-        int avgWordLen = 5;
-        int avgFreq = 50;
-        //int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
-        int radixSortSize = 10;
-        splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
-        for (int i = 0; i < rankThreadNum; i++) {
-            // 用于基数排序
-            List<List<JString>> rank = new ArrayList<List<JString>>(radixSortSize);
-            for (int j = 0; j < radixSortSize; j++) {
-                rank.add(new ArrayList<JString>(candidateSize)); //at most top + stopword.size
-            }
-            splitRank.add(rank);
-        } */
-
         rankRunnablelatch = new CountDownLatch(rankThreadNum);
     }
 
@@ -129,7 +113,6 @@ public class WC9 {
         long endWordCnt = System.currentTimeMillis();
 
         long startTopTen = System.currentTimeMillis();
-
         Thread[] threads2 = new Thread[wcThreadNum];
         for (int i = 0; i < wcThreadNum; i++) {
             threads2[i] = new Thread(new RankRunnable(i));
@@ -170,9 +153,6 @@ public class WC9 {
                 }
             } else {
                 if (wordStartIndex != -1) {
-
-                    splitall++;// 用于估算有多少单词
-
                     // 一次遍历完成：1) to lower case; 2) compute hashcode
                     int hashcode = 0;
                     for (int j = wordStartIndex; j < wordEndIndex + 1; ++j) {
@@ -209,14 +189,17 @@ public class WC9 {
     }
 
     static class MutableInt {
-        AtomicInteger value = new AtomicInteger(1);
+          int value;
+        //AtomicInteger value = new AtomicInteger(1);
 
         void inc() {
-            value.getAndIncrement();
+            //value.getAndIncrement();
+            value++;
         }
 
         int get() {
-            return value.get();
+            //return value.get();
+            return value;
         }
     }
 
@@ -246,7 +229,7 @@ public class WC9 {
             if (!(o instanceof JString)) return false;
 
             JString jString = (JString) o;
-            if (bytes == null && jString.bytes == null) {
+         //   if (bytes == null && jString.bytes == null) {
                 if (this.start == jString.start) return true;
 
                 if (this.len != jString.len) return false;
@@ -255,6 +238,7 @@ public class WC9 {
                         return false;
                     }
                 }
+                /*
             } else {
                 // this 对象来自文本, jString来自stopword
                 if(this.bytes == null && jString.bytes != null){
@@ -272,18 +256,18 @@ public class WC9 {
                         }
                     }
                 }
-            }
+            } */
             return true;
         }
 
         @Override
         public int hashCode() {
-
+            /*
             if (hashcode == 0) { // 来自stopword
                 for (int i = 0; i < bytes.length; i++) {
                     hashcode = 31 * hashcode + bytes[i];
                 }
-            }
+            } */
 
             return this.hashcode;
         }
