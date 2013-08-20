@@ -211,7 +211,7 @@ public class WC9 {
             int maxIndex = -1;
             for (int j = 0; j < rankThreadNum; j++) {
                 WCResult r = result[j][index[j]];
-                if (max.cnt < r.cnt) {
+                if (max == null || max.cnt < r.cnt) {
                     max = r;
                     maxIndex = j;
                 }
