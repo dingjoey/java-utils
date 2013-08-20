@@ -49,6 +49,7 @@ public class WC9 {
     // merge runnable
     static JString[][] splitRankResult = new JString[rankThreadNum][top];
     static int[][] splitCntResult = new int[rankThreadNum][top];
+    static WCResult[][] result = new WCResult[rankThreadNum][top];
 
     static {
         try {
@@ -177,7 +178,7 @@ public class WC9 {
                     ConcurrentHashMap<JString, AtomicInteger> splitWordCnt = splitWC.get(index > 0 ? index : 0 - index);
                     AtomicInteger cnt = splitWordCnt.get(word);
                     if (cnt != null) cnt.getAndIncrement();
-                    else splitWordCnt.put(word,new AtomicInteger(1));
+                    else splitWordCnt.put(word, new AtomicInteger(1));
                     wordStartIndex = -1;
                 }
             }
@@ -201,27 +202,26 @@ public class WC9 {
     }
 
     static void merge() {
-        ArrayList<JString> topTen = new ArrayList<JString>();
+        ArrayList<WCResult> topTen = new ArrayList<WCResult>(16);
         int index[] = new int[rankThreadNum];
 
         for (int i = 0; i < 10; i++) {
-            int max = 0;
+            WCResult max = null;
             JString top = null;
             int maxIndex = -1;
             for (int j = 0; j < rankThreadNum; j++) {
-                int cnt = splitCntResult[j][index[j]];
-                if (max < cnt) {
-                    max = cnt;
-                    top = splitRankResult[j][index[j]];
+                WCResult r = result[j][index[j]];
+                if (max.cnt < r.cnt) {
+                    max = r;
                     maxIndex = j;
                 }
 
             }
             index[maxIndex]++;
-            topTen.add(top);
+            topTen.add(max);
         }
 
-        for (JString word : topTen) {
+        for (WCResult word : topTen) {
             System.out.println(word);
         }
     }
@@ -235,6 +235,24 @@ public class WC9 {
 
         int get() {
             return value.get();
+        }
+    }
+
+    static class WCResult {
+        final JString word;
+        final int cnt;
+
+        WCResult(JString word, int cnt) {
+            this.word = word;
+            this.cnt = cnt;
+        }
+
+        @Override
+        public String toString() {
+            return "WCResult{" +
+                    "word=" + word +
+                    ", cnt=" + cnt +
+                    '}';
         }
     }
 
@@ -310,16 +328,12 @@ public class WC9 {
         final Map<JString, AtomicInteger> split;
         final JString[][] rank;
         final int[] index;
-        final JString[] result;
-        final int[] cnt;
 
         RankRunnable(int id) {
             this.id = id;
             split = splitWC.get(id);
             rank = splitRankArray.get(id);
             index = new int[rank.length];
-            result = splitRankResult[id];
-            cnt = splitCntResult[id];
         }
 
         public void run() {
@@ -341,8 +355,7 @@ public class WC9 {
                     JString word = words[j];
                     if (!isStopWords(word)) {
                         if (c >= top) break;
-                        result[c] = word;
-                        cnt[c] = i;
+                        result[this.id][c] = new WCResult(word, i);
                         c++;
                     }
                 }
