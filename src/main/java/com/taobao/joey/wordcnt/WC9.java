@@ -45,7 +45,8 @@ public class WC9 {
     static JString[][][] splitRankArray;
     static CountDownLatch rankRunnablelatch = new CountDownLatch(rankThreadNum);
     // merge runnable
-    static WCResult[][] result = new WCResult[rankThreadNum][top];
+    // static WCResult[][] result = new WCResult[rankThreadNum][top];
+    static WCResult[][] result = new WCResult[rankThreadNum][];
 
     static {
         try {
@@ -64,14 +65,18 @@ public class WC9 {
         for (int i = 0; i < rankThreadNum; i++) {
             splitWC.add(new ConcurrentHashMap<JString, AtomicInteger>(50000, 0.9f));
         }
-
+       /*
         int avgWordLen = 5;
         int avgFreq = 100;
         int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
         // 用于基数排序
+        long cstart = System.currentTimeMillis();
+        System.out.println("start create array");
         splitRankArray =  new JString[rankThreadNum][radixSortSize][candidateSize];
-
-
+        System.out.println("end create array");
+        long cend = System.currentTimeMillis();
+        System.out.println("init consumes : " + (cend - cstart));
+        */
         long end = System.currentTimeMillis();
         System.out.println("init consumes : " + (end - start));
     }
@@ -181,6 +186,7 @@ public class WC9 {
             JString top = null;
             int maxIndex = -1;
             for (int j = 0; j < rankThreadNum; j++) {
+                if (index[j] > 10) continue;
                 WCResult r = result[j][index[j]];
                 if (max == null || max.cnt < r.cnt) {
                     max = r;
@@ -297,27 +303,63 @@ public class WC9 {
     static class RankRunnable implements Runnable {
         final int id;
         final Map<JString, AtomicInteger> split;
-        final JString[][] rank;
-        final int[] index;
+        //final JString[][] rank;
+        //final int[] index;
+        final WCResult[] rank;
 
         RankRunnable(int id) {
             this.id = id;
             split = splitWC.get(id);
-            rank = splitRankArray[id];
-            index = new int[rank.length];
+            rank = new WCResult[split.entrySet().size()];
+            result[id] = rank;
+            //rank = splitRankArray[id];
+            //index = new int[rank.length];
         }
 
         public void run() {
-            int max = 0;
+            //WCResult maxWC = null;
+            //int max = 0;
+            int len = 0;
+            int top = 10;
             for (Map.Entry<JString, AtomicInteger> entry : split.entrySet()) {
                 int cnt = entry.getValue().get();
+                JString word = entry.getKey();
+                //
+                if (cnt == 1) continue;
+
+                if (!isStopWords(word)) {
+                    int i = 0;
+                    for (; i < len; i++) {
+                        if (rank[i] == null || cnt > rank[i].cnt) break;
+                    }
+
+                    if (len >= top && i == len) continue;
+                    else {
+                        if (rank[i] != null) {
+                            for (int j = len - 1; j >= i + 1; j--) {
+                                rank[j] = rank[j - 1];
+                            }
+                        }
+                        rank[i] = new WCResult(word, cnt);
+                        len++;
+                    }
+                }
+
+
+                /*
                 int i = index[cnt];
                 if (i >= candidateSize) continue;
                 JString[] words = rank[cnt];
                 words[index[cnt]++] = entry.getKey();
                 if (cnt > max) max = cnt;
+
+                if (!isStopWords(word) && (maxWC == null || maxWC.cnt < cnt)) {
+                    maxWC = new WCResult(word, cnt);
+                }
+                */
             }
 
+            /*
             int c = 0;
             for (int i = max; i >= 0; i--) {
                 JString[] words = rank[i];
@@ -330,7 +372,8 @@ public class WC9 {
                         c++;
                     }
                 }
-            }
+            }*/
+            //result[this.id][0] = maxWC;
             rankRunnablelatch.countDown();
         }
     }
