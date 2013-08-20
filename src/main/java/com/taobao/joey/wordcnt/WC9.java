@@ -41,7 +41,7 @@ public class WC9 {
     static Map<JString, MutableInt> wc = new ConcurrentHashMap<JString, MutableInt>(50000, 0.9f);
     // rank runnable
     static int rankThreadNum = 16;
-    static List<ConcurrentHashMap<JString, MutableInt>> splitWC = new ArrayList<ConcurrentHashMap<JString, MutableInt>>(rankThreadNum);
+    static List<ConcurrentHashMap<JString, AtomicInteger>> splitWC = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
     //static List<ConcurrentHashMap<JString, AtomicInteger>> splitWCAtomicInteger = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
     //static List<List<List<JString>>> splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
     static List<JString[][]> splitRankArray = new ArrayList<JString[][]>(rankThreadNum);
@@ -74,9 +74,9 @@ public class WC9 {
 
         // rank cnt runnable init
         rankThreadNum = rn;
-        splitWC = new ArrayList<ConcurrentHashMap<JString, MutableInt>>(rankThreadNum);
+        splitWC = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
         for (int i = 0; i < rankThreadNum; i++) {
-            splitWC.add(new ConcurrentHashMap<JString, MutableInt>(50000, 0.9f));
+            splitWC.add(new ConcurrentHashMap<JString, AtomicInteger>(50000, 0.9f));
         }
         /*
         rankThreadNum = rn;
@@ -174,10 +174,10 @@ public class WC9 {
                     JString word = new JString(wordStartIndex, wordEndIndex, hashcode);
                     // mutableInt 一次计数只访问一次map
                     int index = hashcode % splitWC.size();
-                    ConcurrentHashMap<JString, MutableInt> splitWordCnt = splitWC.get(index > 0 ? index : 0 - index);
-                    MutableInt cnt = splitWordCnt.get(word);
-                    if (cnt != null) cnt.inc();
-                    else splitWordCnt.put(word,new MutableInt());
+                    ConcurrentHashMap<JString, AtomicInteger> splitWordCnt = splitWC.get(index > 0 ? index : 0 - index);
+                    AtomicInteger cnt = splitWordCnt.get(word);
+                    if (cnt != null) cnt.getAndIncrement();
+                    else splitWordCnt.put(word,new AtomicInteger(1));
                     wordStartIndex = -1;
                 }
             }
@@ -307,7 +307,7 @@ public class WC9 {
 
     static class RankRunnable implements Runnable {
         final int id;
-        final Map<JString, MutableInt> split;
+        final Map<JString, AtomicInteger> split;
         final JString[][] rank;
         final int[] index;
         final JString[] result;
@@ -324,7 +324,7 @@ public class WC9 {
 
         public void run() {
             int max = 0;
-            for (Map.Entry<JString, MutableInt> entry : split.entrySet()) {
+            for (Map.Entry<JString, AtomicInteger> entry : split.entrySet()) {
                 int cnt = entry.getValue().get();
                 int i = index[cnt];
                 if (i >= candidateSize) continue;
