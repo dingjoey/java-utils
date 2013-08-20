@@ -175,8 +175,9 @@ public class WC9 {
                     // mutableInt 一次计数只访问一次map
                     int index = hashcode % splitWC.size();
                     ConcurrentHashMap<JString, MutableInt> splitWordCnt = splitWC.get(index > 0 ? index : 0 - index);
-                    MutableInt cnt = splitWordCnt.putIfAbsent(word, new MutableInt());
+                    MutableInt cnt = splitWordCnt.get(word);
                     if (cnt != null) cnt.inc();
+                    else splitWordCnt.put(word,new MutableInt());
                     wordStartIndex = -1;
                 }
             }
