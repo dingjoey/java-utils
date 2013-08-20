@@ -27,28 +27,24 @@ public class WC9 {
             = new HashSet<String>(Arrays.asList("the", "and", "i", "to", "of", "a", "in", "was", "that", "had", "he", "you", "his", "my", "it", "as", "with", "her", "for", "on"));
     //
     static int top = 10;
-    static int candidateSize = stopWords.size();
+    static int candidateSize = stopWords.size() + 10;
     // 读文件用
     static int PAGE_SIZE = 65535;
-    static byte[] chunk;
     static int chunkSize = PAGE_SIZE;
     static File file;
     static long fileLength;
+    static byte[] chunk;
+    static int splitLength;
     // wordcnt runnable
     static int wcThreadNum = 16;
-    static int splitLength;
     static CountDownLatch wcRunnablelatch = new CountDownLatch(wcThreadNum);
     static Map<JString, MutableInt> wc = new ConcurrentHashMap<JString, MutableInt>(50000, 0.9f);
     // rank runnable
     static int rankThreadNum = 16;
     static List<ConcurrentHashMap<JString, AtomicInteger>> splitWC = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
-    //static List<ConcurrentHashMap<JString, AtomicInteger>> splitWCAtomicInteger = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
-    //static List<List<List<JString>>> splitRank = new ArrayList<List<List<JString>>>(rankThreadNum);
-    static List<JString[][]> splitRankArray = new ArrayList<JString[][]>(rankThreadNum);
+    static JString[][][] splitRankArray;
     static CountDownLatch rankRunnablelatch = new CountDownLatch(rankThreadNum);
     // merge runnable
-    static JString[][] splitRankResult = new JString[rankThreadNum][top];
-    static int[][] splitCntResult = new int[rankThreadNum][top];
     static WCResult[][] result = new WCResult[rankThreadNum][top];
 
     static {
@@ -61,45 +57,21 @@ public class WC9 {
 
     static void init(int wn, int rn, int t) throws URISyntaxException {
         long start = System.currentTimeMillis();
-        //
-        top = t;
-        candidateSize = top + stopWords.size();
-        //
         file = new File(WC9.class.getResource("/document.txt").toURI());
         fileLength = file.length();
         chunk = new byte[(int) fileLength];
-        chunkSize = PAGE_SIZE;
-        // word cnt runnable init
-        wcThreadNum = wn;
-        wcRunnablelatch = new CountDownLatch(wcThreadNum);
-
-        // rank cnt runnable init
-        rankThreadNum = rn;
-        splitWC = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
+        splitLength = chunk.length / wcThreadNum;
         for (int i = 0; i < rankThreadNum; i++) {
             splitWC.add(new ConcurrentHashMap<JString, AtomicInteger>(50000, 0.9f));
         }
-        /*
-        rankThreadNum = rn;
-        splitWCAtomicInteger = new ArrayList<ConcurrentHashMap<JString, AtomicInteger>>(rankThreadNum);
-        for (int i = 0; i < rankThreadNum; i++) {
-            splitWCAtomicInteger.add(new ConcurrentHashMap<JString, AtomicInteger>(50000, 0.9f));
-        }
-        */
 
         int avgWordLen = 5;
         int avgFreq = 10;
         int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
-        splitRankArray = new ArrayList<JString[][]>(rankThreadNum);
-        for (int i = 0; i < rankThreadNum; i++) {
-            // 用于基数排序
-            JString[][] rank = new JString[radixSortSize][candidateSize];
-            //System.out.println("init consumes : " + (end - start));
-            // lazy create
-            splitRankArray.add(rank);
-        }
+        // 用于基数排序
+        splitRankArray =  new JString[rankThreadNum][radixSortSize][candidateSize];
 
-        rankRunnablelatch = new CountDownLatch(rankThreadNum);
+
         long end = System.currentTimeMillis();
         System.out.println("init consumes : " + (end - start));
     }
@@ -110,7 +82,6 @@ public class WC9 {
         long endReadFile = System.currentTimeMillis();
 
         long startWordCnt = System.currentTimeMillis();
-        splitLength = chunk.length / wcThreadNum;
         Thread[] threads1 = new Thread[wcThreadNum];
         for (int i = 0; i < wcThreadNum; i++) {
             threads1[i] = new Thread(new WordCntRunnable(i));
@@ -332,7 +303,7 @@ public class WC9 {
         RankRunnable(int id) {
             this.id = id;
             split = splitWC.get(id);
-            rank = splitRankArray.get(id);
+            rank = splitRankArray[id];
             index = new int[rank.length];
         }
 
