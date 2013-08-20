@@ -66,7 +66,7 @@ public class WC9 {
         }
 
         int avgWordLen = 5;
-        int avgFreq = 10;
+        int avgFreq = 100;
         int radixSortSize = (int) (fileLength / avgWordLen) / avgFreq;
         // 用于基数排序
         splitRankArray =  new JString[rankThreadNum][radixSortSize][candidateSize];
